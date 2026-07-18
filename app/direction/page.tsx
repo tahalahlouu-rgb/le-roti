@@ -18,7 +18,23 @@ export default async function DashboardPage() {
   const profile = await requireRole("admin");
   const supabase = await createClient();
   const today = todayISO();
-  const monthStart = currentMonthISO();
+
+  // Mois courant, ou dernier mois facturé s'il n'y a rien ce mois-ci
+  // (vacances d'été par exemple)
+  let monthStart = currentMonthISO();
+  const { count: currentMonthCount } = await supabase
+    .from("payments")
+    .select("id", { count: "exact", head: true })
+    .eq("month", monthStart);
+  if (!currentMonthCount) {
+    const { data: latest } = await supabase
+      .from("payments")
+      .select("month")
+      .order("month", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (latest?.month) monthStart = latest.month;
+  }
 
   const [
     { count: studentCount },
