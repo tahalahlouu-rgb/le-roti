@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { t } from "@/lib/i18n";
-import { formatDate, formatScore } from "@/lib/format";
+import { formatDate, formatMAD, formatMonth, formatScore } from "@/lib/format";
 import {
   subjectAverages,
   generalAverage,
@@ -10,7 +10,7 @@ import {
 } from "@/lib/grades";
 import { Icon } from "@/components/icons";
 import { Badge } from "@/components/ui";
-import type { Attendance, Grade, Term } from "@/lib/types";
+import type { Attendance, Grade, Payment, Term } from "@/lib/types";
 
 interface ChildRow {
   id: string;
@@ -68,8 +68,14 @@ export default async function ChildPage({
       .order("date", { ascending: false })
       .limit(60),
   ]);
+  const { data: paymentsData } = await supabase
+    .from("payments")
+    .select("*")
+    .eq("student_id", id)
+    .order("month", { ascending: false });
   const grades = (gradesData ?? []) as Grade[];
   const attendance = (attendanceData ?? []) as Attendance[];
+  const payments = (paymentsData ?? []) as Payment[];
   const monthAbsences = attendance.filter(
     (a) => a.type === "absence" && a.date >= currentMonthStart
   ).length;
@@ -261,6 +267,52 @@ export default async function ChildPage({
                     <Badge tone="green">{t.attendance.justified}</Badge>
                   )}
                 </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Paiements */}
+      <section className="mb-6">
+        <h2 className="mb-2 flex items-center gap-2 text-base font-semibold text-slate-900">
+          <Icon name="banknote" className="h-4 w-4 text-slate-400" />
+          {t.payments.monthlyFees}
+        </h2>
+        {payments.length === 0 ? (
+          <div className="card p-4 text-sm text-slate-500">
+            {t.common.empty}
+          </div>
+        ) : (
+          <div className="card divide-y divide-slate-100">
+            {payments.map((p) => (
+              <div
+                key={p.id}
+                className="flex items-center justify-between px-4 py-2.5 text-sm"
+              >
+                <div>
+                  <p className="font-medium capitalize text-slate-800">
+                    {formatMonth(p.month)}
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    {formatMAD(Number(p.amount))}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {p.status === "paid" ? (
+                    <>
+                      <Badge tone="green">{t.payments.paid}</Badge>
+                      <Link
+                        href={`/recu/${p.id}`}
+                        className="text-xs font-medium text-emerald-700"
+                      >
+                        {t.payments.receipt} →
+                      </Link>
+                    </>
+                  ) : (
+                    <Badge tone="red">{t.payments.unpaid}</Badge>
+                  )}
+                </div>
               </div>
             ))}
           </div>
