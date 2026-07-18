@@ -9,7 +9,8 @@ import {
   pickCurrentTerm,
 } from "@/lib/grades";
 import { Icon } from "@/components/icons";
-import type { Grade, Term } from "@/lib/types";
+import { Badge } from "@/components/ui";
+import type { Attendance, Grade, Term } from "@/lib/types";
 
 interface ChildRow {
   id: string;
@@ -50,15 +51,31 @@ export default async function ChildPage({
     (subjectsData ?? []).map((s) => [s.id, s.name] as const)
   );
 
-  const { data: gradesData } = term
-    ? await supabase
-        .from("grades")
-        .select("*")
-        .eq("student_id", id)
-        .eq("term_id", term.id)
-        .order("graded_on")
-    : { data: [] };
+  const currentMonthStart = new Date().toISOString().slice(0, 7) + "-01";
+  const [{ data: gradesData }, { data: attendanceData }] = await Promise.all([
+    term
+      ? supabase
+          .from("grades")
+          .select("*")
+          .eq("student_id", id)
+          .eq("term_id", term.id)
+          .order("graded_on")
+      : Promise.resolve({ data: [] }),
+    supabase
+      .from("attendance")
+      .select("*")
+      .eq("student_id", id)
+      .order("date", { ascending: false })
+      .limit(60),
+  ]);
   const grades = (gradesData ?? []) as Grade[];
+  const attendance = (attendanceData ?? []) as Attendance[];
+  const monthAbsences = attendance.filter(
+    (a) => a.type === "absence" && a.date >= currentMonthStart
+  ).length;
+  const monthLates = attendance.filter(
+    (a) => a.type === "late" && a.date >= currentMonthStart
+  ).length;
 
   const averages = subjectAverages(grades);
   const general = generalAverage(averages.values());
@@ -182,6 +199,71 @@ export default async function ChildPage({
               ))}
             </div>
           </>
+        )}
+      </section>
+
+      {/* Absences & retards */}
+      <section className="mb-6">
+        <h2 className="mb-2 flex items-center gap-2 text-base font-semibold text-slate-900">
+          <Icon name="calendarX" className="h-4 w-4 text-slate-400" />
+          {t.attendance.title}
+        </h2>
+
+        <div className="mb-3 grid grid-cols-2 gap-3">
+          <div className="card p-3 text-center">
+            <p className="text-xs text-slate-500">
+              {t.attendance.absences} · {t.attendance.thisMonth}
+            </p>
+            <p
+              className={`mt-1 text-2xl font-semibold ${
+                monthAbsences > 0 ? "text-red-700" : "text-slate-900"
+              }`}
+            >
+              {monthAbsences}
+            </p>
+          </div>
+          <div className="card p-3 text-center">
+            <p className="text-xs text-slate-500">
+              {t.attendance.lates} · {t.attendance.thisMonth}
+            </p>
+            <p
+              className={`mt-1 text-2xl font-semibold ${
+                monthLates > 0 ? "text-amber-700" : "text-slate-900"
+              }`}
+            >
+              {monthLates}
+            </p>
+          </div>
+        </div>
+
+        {attendance.length === 0 ? (
+          <div className="card p-4 text-sm text-slate-500">
+            {t.attendance.noneThisMonth}
+          </div>
+        ) : (
+          <div className="card divide-y divide-slate-100">
+            <p className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+              {t.attendance.history}
+            </p>
+            {attendance.slice(0, 15).map((a) => (
+              <div
+                key={a.id}
+                className="flex items-center justify-between px-4 py-2.5 text-sm"
+              >
+                <span className="text-slate-700">{formatDate(a.date)}</span>
+                <span className="flex items-center gap-2">
+                  <Badge tone={a.type === "absence" ? "red" : "amber"}>
+                    {a.type === "absence"
+                      ? t.attendance.absence
+                      : t.attendance.late}
+                  </Badge>
+                  {a.justified && (
+                    <Badge tone="green">{t.attendance.justified}</Badge>
+                  )}
+                </span>
+              </div>
+            ))}
+          </div>
         )}
       </section>
     </>
