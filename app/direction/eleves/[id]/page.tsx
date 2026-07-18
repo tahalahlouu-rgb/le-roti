@@ -16,7 +16,7 @@ export default async function StudentDetailPage({
   const { id } = await params;
   const supabase = await createClient();
 
-  const [{ data: student }, { data: classes }, { data: parents }] =
+  const [{ data: student }, { data: classes }, { data: parents }, { data: terms }] =
     await Promise.all([
       supabase.from("students").select("*").eq("id", id).single(),
       supabase.from("classes").select("id, name").order("name"),
@@ -25,6 +25,7 @@ export default async function StudentDetailPage({
         .select("id, first_name, last_name")
         .eq("role", "parent")
         .order("last_name"),
+      supabase.from("terms").select("id, name").order("start_date"),
     ]);
   if (!student) notFound();
   const s = student as Student;
@@ -41,12 +42,23 @@ export default async function StudentDetailPage({
         title={`${s.first_name} ${s.last_name}`}
         subtitle={t.students.editStudent}
         actions={
-          <ActionForm action={deleteStudent}>
-            <input type="hidden" name="id" value={s.id} />
-            <ConfirmButton message={t.students.deleteWarning}>
-              {t.common.delete}
-            </ConfirmButton>
-          </ActionForm>
+          <>
+            {(terms ?? []).map((term) => (
+              <Link
+                key={term.id}
+                href={`/bulletin/${s.id}?trimestre=${term.id}`}
+                className="btn-secondary"
+              >
+                {t.grades.bulletin} {term.name.replace(/^Trimestre\s*/i, "T")}
+              </Link>
+            ))}
+            <ActionForm action={deleteStudent}>
+              <input type="hidden" name="id" value={s.id} />
+              <ConfirmButton message={t.students.deleteWarning}>
+                {t.common.delete}
+              </ConfirmButton>
+            </ActionForm>
+          </>
         }
       />
       <StudentForm
