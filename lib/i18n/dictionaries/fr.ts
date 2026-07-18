@@ -295,6 +295,18 @@ export const fr = {
     direction: "Direction",
     placeholder: "Écrivez votre message…",
   },
+  dashboard: {
+    title: "Tableau de bord",
+    totalStudents: "Effectif total",
+    activeStudents: "élèves scolarisés",
+    unpaidThisMonth: "Impayés du mois",
+    collectedThisMonth: "Encaissé ce mois-ci",
+    absencesToday: "Absences du jour",
+    latesToday: "retards",
+    latestAnnouncements: "Dernières annonces",
+    unreadMessages: "Messages non lus",
+    seeAll: "Tout voir",
+  },
   parentHome: {
     myChildren: "Mes enfants",
     noChildren:
